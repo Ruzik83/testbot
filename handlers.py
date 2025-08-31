@@ -1,58 +1,21 @@
-# ===========================
-# handlers.py (600 qatorlik)
-# ===========================
-
+# handlers.py
 import logging
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import ContextTypes
-from typing import List, Dict, Union
-
 from config import ADMIN_IDS, ADMIN_CODE, TEST_MAX_QUESTIONS
 from db import (
     add_test, add_question, count_questions, list_tests, delete_test,
     add_link, delete_link, list_links, get_available_link, increment_link_users,
     save_result, get_user, list_results, get_questions, add_user_if_not_exists, update_user_group_and_score
 )
+from keyboards import main_menu, test_selection_keyboard, answer_buttons
 from utils import send_question, safe_text, finish as utils_finish
 
 logger = logging.getLogger("handlers")
 
-# ===========================
-# Keyboards
-# ===========================
-def main_menu(is_admin: bool = False):
-    buttons = [
-        [KeyboardButton("🧪 Testni boshlash")],
-        [KeyboardButton("📊 Ballarim"), KeyboardButton("⏹ To'xtatish")]
-    ]
-    if is_admin:
-        buttons.append([KeyboardButton("🆕 Test yaratish")])
-        buttons.append([KeyboardButton("🔗 Link qo'shish")])
-        buttons.append([KeyboardButton("📋 Testlar ro'yxati")])
-    return ReplyKeyboardMarkup(buttons, resize_keyboard=True)
-
-def test_selection_keyboard(tests: List[Union[Dict, tuple]]):
-    buttons = []
-    for t in tests:
-        if isinstance(t, dict):
-            tid, name = t["id"], t["name"]
-        elif isinstance(t, (tuple, list)) and len(t) >= 2:
-            tid, name = t[0], t[1]
-        else:
-            continue
-        buttons.append([InlineKeyboardButton(text=name, callback_data=f"starttest:{tid}")])
-    return InlineKeyboardMarkup(buttons)
-
-def answer_buttons():
-    buttons = [
-        [InlineKeyboardButton("A", callback_data="answer:A"), InlineKeyboardButton("B", callback_data="answer:B")],
-        [InlineKeyboardButton("C", callback_data="answer:C"), InlineKeyboardButton("D", callback_data="answer:D")]
-    ]
-    return InlineKeyboardMarkup(buttons)
-
-# ===========================
+# ==========================
 # Admin: Test yaratish
-# ===========================
+# ==========================
 async def cmd_testyaratish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     if uid not in ADMIN_IDS:
@@ -101,9 +64,9 @@ async def cmd_showtests(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += f"{tid}) {safe_text(name)}\n"
     await update.message.reply_text(text)
 
-# ===========================
+# ==========================
 # Admin: Links
-# ===========================
+# ==========================
 async def cmd_addlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     if uid not in ADMIN_IDS:
@@ -151,9 +114,9 @@ async def cmd_showlinks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += f"{r['id']}) {r['group_type']} — {r['url']} ({r['current_users']}/{r['max_users'] or '∞'})\n"
     await update.message.reply_text(text)
 
-# ===========================
+# ==========================
 # User: Test boshlash
-# ===========================
+# ==========================
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tests = list_tests()
     if not tests:
@@ -187,14 +150,14 @@ async def handle_starttest_cb(update: Update, context: ContextTypes.DEFAULT_TYPE
     add_user_if_not_exists(q.from_user.id, q.from_user.full_name or "", q.from_user.username or "")
     await send_question(update, context)
 
-# ===========================
-# Main menu & Admin flow
-# ===========================
+# ==========================
+# Admin + Menu Handler
+# ==========================
 async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (update.message.text or "").strip()
     ud = context.user_data
 
-    # Admin code
+    # Admin code flow
     if ud.get("mode") == "awaiting_admin_code":
         if text == ADMIN_CODE:
             ud["mode"] = "awaiting_test_name"
@@ -203,7 +166,6 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Kod noto‘g‘ri.")
         return
 
-    # Test name
     if ud.get("mode") == "awaiting_test_name":
         tid = add_test(text[:200])
         ud["test_id"] = tid
@@ -212,7 +174,6 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ Test yaratildi (id={tid}). Endi 1-savolni kiriting:")
         return
 
-    # Savol yaratish
     if ud.get("mode") == "awaiting_question":
         ud["current_question"] = text
         ud["mode"] = "awaiting_option_a"
@@ -262,7 +223,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ Savol qo‘shildi. Umumiy savollar: {ud['qcount']}. Keyingi savolni kiriting yoki /done yozing.")
         return
 
-    # Main menu options
+    # Main menu
     if text == "🧪 Testni boshlash":
         return await cmd_start(update, context)
     if text == "📊 Ballarim":
@@ -288,12 +249,12 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.effective_user.id in ADMIN_IDS:
             return await update.message.reply_text("Link qo‘shish uchun: /addlink A1 https://t.me/... [max_users]")
         return await update.message.reply_text("⛔ Siz admin emassiz.")
-
+    
     await update.message.reply_text("🤖 Menyudan tanlang yoki admin bo‘lsangiz /testyaratish bilan test qo‘shing.")
 
-# ===========================
+# ==========================
 # Inline answer callback
-# ===========================
+# ==========================
 async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -319,9 +280,9 @@ async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await utils_finish(update, context)
 
-# ===========================
+# ==========================
 # Stats & Help
-# ===========================
+# ==========================
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         return
@@ -361,8 +322,3 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "  • /stats – umumiy statistika\n"
     )
     await update.message.reply_text(text)
-
-# ===========================
-# Fayl oxiri
-# ===========================
-
