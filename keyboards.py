@@ -1,6 +1,9 @@
 from telegram import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 from typing import List, Dict, Union
 
+# ===============================
+# Asosiy menyu
+# ===============================
 def main_menu(is_admin: bool = False):
     buttons = [
         [KeyboardButton("🧪 Testni boshlash")],
@@ -12,6 +15,9 @@ def main_menu(is_admin: bool = False):
         buttons.append([KeyboardButton("📋 Testlar ro'yxati")])
     return ReplyKeyboardMarkup(buttons, resize_keyboard=True)
 
+# ===============================
+# Testni tanlash tugmalari
+# ===============================
 def test_selection_keyboard(tests: List[Union[Dict, tuple]]):
     buttons = []
     for t in tests:
@@ -24,6 +30,9 @@ def test_selection_keyboard(tests: List[Union[Dict, tuple]]):
         buttons.append([InlineKeyboardButton(text=name, callback_data=f"starttest:{tid}")])
     return InlineKeyboardMarkup(buttons)
 
+# ===============================
+# Javob variantlari
+# ===============================
 def answer_buttons():
     buttons = [
         [InlineKeyboardButton("A", callback_data="answer:A"), InlineKeyboardButton("B", callback_data="answer:B")],

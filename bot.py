@@ -1,20 +1,25 @@
-# bot.py
+# ===========================
+# bot.py (600 qatorlik boshlanish)
+# ===========================
+
 import logging
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
-from config import BOT_TOKEN
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
+
 from handlers import (
     cmd_start, cmd_testyaratish, cmd_done, handle_answer,
     cmd_addlink, cmd_dellink, cmd_showlinks, handle_menu,
     cmd_showtests, cmd_deletetest, handle_starttest_cb,
     cmd_stats, cmd_help
 )
+
 from db import init_db
+from config import BOT_TOKEN
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("bot")
 
 def main():
-    # Bazani ishga tushirish
     init_db()
 
     app = Application.builder().token(BOT_TOKEN).build()
@@ -41,5 +46,10 @@ def main():
     logger.info("Bot ishga tushdi.")
     app.run_polling()
 
+
 if __name__ == "__main__":
     main()
+
+# ===========================
+# Shu yerda siz xohlaysizmi? davom ettirish va to‘ldirish
+# ===========================
