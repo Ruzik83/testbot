@@ -14,10 +14,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("bot")
 
 def main():
+    # Bazani ishga tushirish
     init_db()
+
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # Commands
+    # Admin va foydalanuvchi komandalarini qo‘shish
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(CommandHandler("testyaratish", cmd_testyaratish))
@@ -29,10 +31,10 @@ def main():
     app.add_handler(CommandHandler("deletetest", cmd_deletetest))
     app.add_handler(CommandHandler("stats", cmd_stats))
 
-    # Message handler (menus and admin interactive)
+    # Foydalanuvchi xabarlarini qabul qilish
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu))
 
-    # Callback handlers
+    # Inline callbacklar
     app.add_handler(CallbackQueryHandler(handle_answer, pattern=r"^answer:"))
     app.add_handler(CallbackQueryHandler(handle_starttest_cb, pattern=r"^starttest:"))
 

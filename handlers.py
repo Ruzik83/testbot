@@ -13,7 +13,9 @@ from utils import send_question, safe_text, finish as utils_finish
 
 logger = logging.getLogger("handlers")
 
-# Admin: start interactive test creation
+# ==========================
+# Admin: Test yaratish
+# ==========================
 async def cmd_testyaratish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     if uid not in ADMIN_IDS:
@@ -39,7 +41,7 @@ async def cmd_deletetest(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     try:
         tid = int(context.args[0])
-    except:
+    except ValueError:
         await update.message.reply_text("❌ ID butun son bo‘lishi kerak.")
         return
     delete_test(tid)
@@ -54,11 +56,17 @@ async def cmd_showtests(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Testlar mavjud emas.")
         return
     text = "📋 Testlar:\n"
-    for tid, name in tests:
+    for t in tests:
+        try:
+            tid, name = t["id"], t["name"]
+        except TypeError:
+            tid, name = t[0], t[1]
         text += f"{tid}) {safe_text(name)}\n"
     await update.message.reply_text(text)
 
-# Links
+# ==========================
+# Admin: Links
+# ==========================
 async def cmd_addlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     if uid not in ADMIN_IDS:
@@ -73,7 +81,7 @@ async def cmd_addlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) >= 3:
         try:
             maxu = int(context.args[2])
-        except:
+        except ValueError:
             maxu = None
     add_link(group, url, maxu or None)
     await update.message.reply_text("✅ Havola qo‘shildi.")
@@ -87,7 +95,7 @@ async def cmd_dellink(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     try:
         lid = int(context.args[0])
-    except:
+    except ValueError:
         await update.message.reply_text("❌ ID butun son bo‘lishi kerak.")
         return
     delete_link(lid)
@@ -106,14 +114,20 @@ async def cmd_showlinks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += f"{r['id']}) {r['group_type']} — {r['url']} ({r['current_users']}/{r['max_users'] or '∞'})\n"
     await update.message.reply_text(text)
 
-# User: start and select test
+# ==========================
+# User: Test boshlash
+# ==========================
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tests = list_tests()
     if not tests:
         await update.message.reply_text("❌ Hozircha testlar mavjud emas.")
         return
-    kb = test_selection_keyboard([(tid, name) for tid, name in tests])
-    await update.message.reply_text("Iltimos ishlamoqchi bo‘lgan testni tanlang:", reply_markup=kb)
+    buttons = [(t["id"], t["name"]) for t in tests]
+    kb = test_selection_keyboard(buttons)
+    await update.message.reply_text(
+        "Iltimos ishlamoqchi bo‘lgan testni tanlang:", 
+        reply_markup=kb
+    )
 
 async def handle_starttest_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -136,12 +150,14 @@ async def handle_starttest_cb(update: Update, context: ContextTypes.DEFAULT_TYPE
     add_user_if_not_exists(q.from_user.id, q.from_user.full_name or "", q.from_user.username or "")
     await send_question(update, context)
 
-# Main message handler (admin creation flow + menu)
+# ==========================
+# Admin + Menu Handler
+# ==========================
 async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (update.message.text or "").strip()
     ud = context.user_data
 
-    # admin code
+    # Admin code flow
     if ud.get("mode") == "awaiting_admin_code":
         if text == ADMIN_CODE:
             ud["mode"] = "awaiting_test_name"
@@ -207,7 +223,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ Savol qo‘shildi. Umumiy savollar: {ud['qcount']}. Keyingi savolni kiriting yoki /done yozing.")
         return
 
-    # Menu actions
+    # Main menu
     if text == "🧪 Testni boshlash":
         return await cmd_start(update, context)
     if text == "📊 Ballarim":
@@ -219,7 +235,8 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             lks = list_links()
             for l in lks:
                 if l["id"] == u["link_id"]:
-                    link = l["url"]; break
+                    link = l["url"]
+                    break
         username = u.get("username") or u.get("full_name") or update.effective_user.id
         await update.message.reply_text(f"{username}: {u.get('score',0)} ball\nGuruh: {u.get('group_type')}\nLink: {link or '—'}")
         return
@@ -232,9 +249,12 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.effective_user.id in ADMIN_IDS:
             return await update.message.reply_text("Link qo‘shish uchun: /addlink A1 https://t.me/... [max_users]")
         return await update.message.reply_text("⛔ Siz admin emassiz.")
+    
     await update.message.reply_text("🤖 Menyudan tanlang yoki admin bo‘lsangiz /testyaratish bilan test qo‘shing.")
 
+# ==========================
 # Inline answer callback
+# ==========================
 async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -258,10 +278,11 @@ async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if ud["current_index"] < len(questions):
         await send_question(update, context)
     else:
-        # call utils.finish which handles group assignment
         await utils_finish(update, context)
 
-# Stats & help
+# ==========================
+# Stats & Help
+# ==========================
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         return
@@ -278,7 +299,8 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             lks = list_links()
             for l in lks:
                 if l["id"] == r["link_id"]:
-                    link = l["url"]; break
+                    link = l["url"]
+                    break
         text += f"👤 {username} — {r.get('score')} ball, Link: {link or '—'}\n"
     await update.message.reply_text(text)
 

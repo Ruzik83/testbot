@@ -1,6 +1,6 @@
 # db.py
 """
-Comprehensive SQLite-backed database for Telegram test bot.
+Comprehensive SQLite-backed database for Telegram test bot with username support.
 """
 
 import sqlite3
@@ -79,6 +79,7 @@ def init_db():
         """CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
             full_name TEXT,
+            username TEXT,
             score INTEGER DEFAULT 0,
             group_type TEXT,
             link_id INTEGER
@@ -233,11 +234,14 @@ def create_group_if_needed(group_letter: str) -> Optional[Dict[str, Any]]:
         return dict(created) if created else None
 
 # ----------------------------- Users / Results -----------------------------
-def add_user_if_not_exists(user_id: int, full_name: str = ""):
+def add_user_if_not_exists(user_id: int, full_name: str = "", username: str = None):
     with get_cursor(commit=True) as cur:
         cur.execute("SELECT id FROM users WHERE id=?", (user_id,))
         if not cur.fetchone():
-            cur.execute("INSERT INTO users (id, full_name, score, group_type, link_id) VALUES (?, ?, 0, ?, ?)", (user_id, full_name, None, None))
+            cur.execute(
+                "INSERT INTO users (id, full_name, username, score, group_type, link_id) VALUES (?, ?, ?, 0, ?, ?)",
+                (user_id, full_name, username, None, None)
+            )
 
 def update_user_group_and_score(user_id: int, group_type: Optional[str] = None, score: Optional[int] = None, link_id: Optional[int] = None):
     updates = []
