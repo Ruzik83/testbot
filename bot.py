@@ -1,0 +1,43 @@
+# bot.py
+import logging
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
+from config import BOT_TOKEN
+from handlers import (
+    cmd_start, cmd_testyaratish, cmd_done, handle_answer,
+    cmd_addlink, cmd_dellink, cmd_showlinks, handle_menu,
+    cmd_showtests, cmd_deletetest, handle_starttest_cb,
+    cmd_stats, cmd_help
+)
+from db import init_db
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("bot")
+
+def main():
+    init_db()
+    app = Application.builder().token(BOT_TOKEN).build()
+
+    # Commands
+    app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("testyaratish", cmd_testyaratish))
+    app.add_handler(CommandHandler("done", cmd_done))
+    app.add_handler(CommandHandler("addlink", cmd_addlink))
+    app.add_handler(CommandHandler("dellink", cmd_dellink))
+    app.add_handler(CommandHandler("showlinks", cmd_showlinks))
+    app.add_handler(CommandHandler("showtests", cmd_showtests))
+    app.add_handler(CommandHandler("deletetest", cmd_deletetest))
+    app.add_handler(CommandHandler("stats", cmd_stats))
+
+    # Message handler (menus and admin interactive)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu))
+
+    # Callback handlers
+    app.add_handler(CallbackQueryHandler(handle_answer, pattern=r"^answer:"))
+    app.add_handler(CallbackQueryHandler(handle_starttest_cb, pattern=r"^starttest:"))
+
+    logger.info("Bot ishga tushdi.")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
